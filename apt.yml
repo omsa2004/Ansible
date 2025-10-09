@@ -1,5 +1,5 @@
 - hosts: "*"
-  become: yes
+  become: no
   tasks:
     - name: Ensure required Python libraries are installed
       apt:
