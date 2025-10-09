@@ -1,8 +1,8 @@
 - hosts: "*"
   become: yes
-  vars_files:
-    ansible_ssh_pass: "{{ lookup('env', 'SEMAPHORE_SECRET_USER_PASS') }}"
-    ansible_become_password: "{{ lookup('env', 'SEMAPHORE_SECRET_USER_PASS') }}"
+  vars:
+    ansible_ssh_pass: "{{ key_store.user_pass }}"
+    ansible_become_password: "{{ key_store.user_pass }}"
   tasks:
     - name: apt
       apt:
