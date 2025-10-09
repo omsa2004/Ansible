@@ -1,5 +1,6 @@
 - hosts: "*"
-  become: no
+  become: yes
+  gather_facts: no   # Disable automatic fact gathering
   tasks:
     - name: Ensure required Python libraries are installed
       apt:
@@ -8,6 +9,9 @@
           - python3-six
         state: present
         update_cache: yes
+
+    - name: Gather facts now that Python modules exist
+      ansible.builtin.setup:
 
     - name: Upgrade packages
       apt:
