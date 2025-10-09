@@ -1,0 +1,23 @@
+
+- name: adding a User
+  hosts: "*"
+  become: true
+  tasks:
+    - name: Creating ansible user
+      ansible.builtin.user:
+        name: ansible
+        password: "{{user_password | password_hash('sha512')}}"
+        groups: 
+          - sudo
+          #- ssh
+        state: "present"
+        shell: "/bin/bash"
+        system: false
+        createhome: true
+        home: "/home/ansible"
+
+    - name: Create SSH directory
+      file: path=/home/ansible/.ssh/  state=directory mode=0755
+
+    - name: Coping over the SSH keys
+      template: src=../templates/id_rsa.pub dest=/home/ansible/.ssh/authorized_keys
