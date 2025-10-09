@@ -1,9 +1,9 @@
-- name: install latest qemu-guest-agent
+- name: Install latest qemu-guest-agent (raw)
   hosts: "*"
+  gather_facts: no
   tasks:
-    - name: install qemu-guest-agent
-      apt:
-        name: qemu-guest-agent
-        state: present
-        update_cache: true
-      become: true
+    - name: Update apt cache
+      raw: sudo apt update -y
+
+    - name: Install qemu-guest-agent
+      raw: sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-guest-agent
