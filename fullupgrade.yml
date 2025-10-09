@@ -1,0 +1,6 @@
+- hosts: "*"
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Full system upgrade including held-back packages
+      raw: sudo DEBIAN_FRONTEND=noninteractive apt update -y && sudo DEBIAN_FRONTEND=noninteractive apt full-upgrade -y && sudo apt autoremove -y
