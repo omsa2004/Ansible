@@ -1,0 +1,8 @@
+- name: Print ansible_become_password
+  debug:
+    var: ansible_become_password
+
+- name: Ensure ansible_become_password is defined
+  fail:
+    msg: "ansible_become_password is not defined"
+  when: ansible_become_password is not defined
