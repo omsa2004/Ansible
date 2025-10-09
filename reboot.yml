@@ -1,0 +1,16 @@
+---
+- name: Reboot all machines
+  hosts: "*"
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Reboot the machine
+      ansible.builtin.reboot:
+        reboot_timeout: 600      # time to wait for machine to come back (seconds)
+        pre_reboot_delay: 0      # delay before rebooting
+        post_reboot_delay: 10    # wait after the host comes back up
+        test_command: whoami     # checks if machine is ready
+
+    - name: Confirm machine is up
+      ansible.builtin.ping:
