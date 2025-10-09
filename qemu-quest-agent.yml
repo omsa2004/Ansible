@@ -1,16 +1,18 @@
 - hosts: "*"
-  gather_facts: no
+  become: yes
+  gather_facts: yes
   tasks:
     - name: Update apt cache
-      raw: sudo DEBIAN_FRONTEND=noninteractive apt update -y
+      apt:
+        update_cache: yes
 
     - name: Install qemu-guest-agent
-      raw: sudo DEBIAN_FRONTEND=noninteractive apt install -y \
-           -o Dpkg::Options::="--force-confdef" \
-           -o Dpkg::Options::="--force-confold" qemu-guest-agent
+      apt:
+        name: qemu-guest-agent
+        state: present
 
-    - name: Enable qemu-guest-agent service
-      raw: sudo systemctl enable qemu-guest-agent
-
-    - name: Start qemu-guest-agent service
-      raw: sudo systemctl start qemu-guest-agent
+    - name: Enable and start qemu-guest-agent
+      service:
+        name: qemu-guest-agent
+        enabled: yes
+        state: started
