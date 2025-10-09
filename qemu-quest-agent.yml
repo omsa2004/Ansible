@@ -1,4 +1,4 @@
-- name: Install latest qemu-guest-agent (raw)
+- name: Install and start qemu-guest-agent (raw)
   hosts: "*"
   gather_facts: no
   tasks:
@@ -7,3 +7,6 @@
 
     - name: Install qemu-guest-agent
       raw: sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-guest-agent
+
+    - name: Enable and start qemu-guest-agent service
+      raw: sudo systemctl enable --now qemu-guest-agent
