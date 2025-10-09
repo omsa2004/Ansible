@@ -1,12 +1,23 @@
 - hosts: "*"
   become: yes
-  gather_facts: no
+  gather_facts: yes  # Keeps fact gathering for module operations
   tasks:
-    - name: Update apt cache
-      raw: sudo apt update -y
+    - name: Ensure apt cache is up to date
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600  # Optional: avoid updating cache if recent
+      tags: update
 
-    - name: Full upgrade all packages
-      raw: sudo DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
+    - name: Install qemu-guest-agent
+      ansible.builtin.apt:
+        name: qemu-guest-agent
+        state: present
+        install_recommends: yes
+      tags: install
 
-    - name: Remove unnecessary packages
-      raw: sudo apt autoremove -y
+    - name: Ensure qemu-guest-agent service is enabled and started
+      ansible.builtin.service:
+        name: qemu-guest-agent
+        enabled: yes
+        state: started
+      tags: service
