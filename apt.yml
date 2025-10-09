@@ -1,20 +1,12 @@
 - hosts: "*"
   become: yes
-  gather_facts: no   # Disable automatic fact gathering
+  gather_facts: no   # No Python required
   tasks:
-    - name: Ensure required Python libraries are installed
-      apt:
-        name:
-          - python3-apt
-          - python3-six
-        state: present
-        update_cache: yes
+    - name: Update apt cache
+      raw: sudo apt update -y
 
-    - name: Gather facts now that Python modules exist
-      ansible.builtin.setup:
+    - name: Upgrade all packages
+      raw: sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y
 
-    - name: Upgrade packages
-      apt:
-        update_cache: yes
-        upgrade: yes
-        autoremove: yes
+    - name: Remove unnecessary packages
+      raw: sudo apt autoremove -y
