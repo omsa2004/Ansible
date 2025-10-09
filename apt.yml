@@ -1,6 +1,6 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes  # Python is required for apt module
+  gather_facts: yes  # Python required for apt module
   tasks:
     - name: Update apt cache
       ansible.builtin.apt:
@@ -8,9 +8,9 @@
         cache_valid_time: 3600  # optional: skip if cache is recent
       tags: update
 
-    - name: Upgrade all packages
+    - name: Upgrade all packages (normal upgrade)
       ansible.builtin.apt:
-        upgrade: dist
+        upgrade: yes
         autoremove: yes
       tags: upgrade
 
