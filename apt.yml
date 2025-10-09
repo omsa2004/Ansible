@@ -1,8 +1,16 @@
 - hosts: "*"
   become: yes
   tasks:
-    - name: apt
+    - name: Ensure required Python libraries are installed
+      apt:
+        name:
+          - python3-apt
+          - python3-six
+        state: present
+        update_cache: yes
+
+    - name: Upgrade packages
       apt:
         update_cache: yes
-        upgrade: 'yes'
-        autoremove: 'yes'
+        upgrade: yes
+        autoremove: yes
