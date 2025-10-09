@@ -1,7 +1,5 @@
 - name: install latest qemu-guest-agent
   hosts: "*"
-  vars_files: 
-    - secret
   tasks:
     - name: install qemu-guest-agent
       apt:
