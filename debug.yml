@@ -1,5 +1,5 @@
 - name: Print ansible_become_password
-  var: 
+  vars: 
     ansible_ssh_pass: "{{ ansible_ssh_pass }}"
 
 - name: Ensure ansible_become_password is defined
