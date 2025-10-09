@@ -1,18 +1,23 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes
+  gather_facts: yes  # Keeps fact gathering for module operations
   tasks:
-    - name: Update apt cache
-      apt:
+    - name: Ensure apt cache is up to date
+      ansible.builtin.apt:
         update_cache: yes
+        cache_valid_time: 3600  # Optional: avoid updating cache if recent
+      tags: update
 
     - name: Install qemu-guest-agent
-      apt:
+      ansible.builtin.apt:
         name: qemu-guest-agent
         state: present
+        install_recommends: yes
+      tags: install
 
-    - name: Enable and start qemu-guest-agent
-      service:
+    - name: Ensure qemu-guest-agent service is enabled and started
+      ansible.builtin.service:
         name: qemu-guest-agent
         enabled: yes
         state: started
+      tags: service
