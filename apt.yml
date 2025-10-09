@@ -1,8 +1,8 @@
 - hosts: "*"
   become: yes
   vars:
-    ansible_ssh_pass: "{{ key_store.user_pass }}"
-    ansible_become_password: "{{ key_store.user_pass }}"
+    ansible_ssh_pass: ${user_pass}
+    ansible_become_password: ${user_pass}
   tasks:
     - name: apt
       apt:
