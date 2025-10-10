@@ -1,0 +1,14 @@
+- hosts: localhost
+  gather_facts: false
+  vars:
+    playbook_name: "APT Upgrade"  # Hardcode the playbook name here
+  tasks:
+    - name: Send Pushover notification
+      ansible.builtin.uri:
+        url: https://api.pushover.net/1/messages.json
+        method: POST
+        body:
+          token: "{{ pover_token }}"  # From Variable Group
+          user: "{{ pover_id }}"      # From Variable Group
+          message: "Playbook '{{ playbook_name }}' finished. Changes were made: {{ changes_status }}"
+        body_format: form-urlencoded
