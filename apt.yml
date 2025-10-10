@@ -18,3 +18,12 @@
       ansible.builtin.apt:
         autoremove: yes
       tags: cleanup
+    - name: Send Pushover notification
+      ansible.builtin.uri:
+        url: https://api.pushover.net/1/messages.json
+        method: POST
+        body:
+          token: "{{ pushover_api_token }}"
+          user: "{{ pushover_user_key }}"
+          message: "Task {{ ansible_job_id }} finished"
+    body_format: form-urlencoded
