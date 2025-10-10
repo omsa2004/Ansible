@@ -24,5 +24,7 @@
         url: https://api.pushover.net/1/messages.json
         method: POST
         body:
-          message: "Task {{ ansible_job_id }} finished"
+          token: "{{ Pushover_API_Token }}"   # Directly use the variable from the Variable Group
+          user: "{{ Pushover_User_Key }}"     # Directly use the variable from the Variable Group
+          message: "Task finished {{ ansible_job_id | default('manual-run') }}"
         body_format: form-urlencoded
