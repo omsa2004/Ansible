@@ -1,28 +1,29 @@
 - hosts: "*"
   become: yes
   gather_facts: yes  # Python required for apt module
+
   tasks:
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600  # optional: skip if cache is recent
       tags: update
+      notify: "Send Pushover notification"
 
     - name: Upgrade all packages (normal upgrade)
       ansible.builtin.apt:
         upgrade: yes
         autoremove: yes
       tags: upgrade
+      notify: "Send Pushover notification"
 
     - name: Remove unnecessary packages
       ansible.builtin.apt:
         autoremove: yes
       tags: cleanup
-    - name: Debug Pushover vars
-      ansible.builtin.debug:
-        var: pover_token
-        var: pover_id
-        
+      notify: "Send Pushover notification"
+
+  handlers:
     - name: Send Pushover notification
       ansible.builtin.uri:
         url: https://api.pushover.net/1/messages.json
@@ -30,5 +31,7 @@
         body:
           token: "{{ pover_token }}"  # Application token
           user: "{{ pover_id }}"      # User key
-          message: "Task finished {{ ansible_job_id | default('manual-run') }}"
+          message: "All tasks finished on all hosts"
         body_format: form-urlencoded
+      run_once: true
+      delegate_to: localhost
