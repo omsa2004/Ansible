@@ -1,23 +1,30 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes
-  vars:
-    playbook_name: "apt.yml"
+  gather_facts: yes  # Required for apt module
   tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: update
+
     - name: Upgrade all packages
       ansible.builtin.apt:
         upgrade: yes
         autoremove: yes
       register: upgrade_result
+      tags: upgrade
 
-    - name: Call notification runbook if upgrade happened
-      ansible.builtin.include_playbook: notify_pushover.yml
+    - name: Remove unnecessary packages
+      ansible.builtin.apt:
+        autoremove: yes
+      tags: cleanup
+
+    # Notify Pushover only once after the upgrade
+    - name: Call Pushover notification runbook
+      ansible.builtin.include_playbook:
+        file: ../notify_pushover.yml
       vars:
-        message: >-
-          Playbook {{ playbook_name }} finished.
-          {% if upgrade_result.changed %}
-            Upgrade was performed on the system.
-          {% else %}
-            No packages needed upgrading.
-          {% endif %}
-      when: upgrade_result.changed
+        changes_status: "{{ 'Yes' if upgrade_result.changed else 'No' }}"
+        playbook_name: "APT Upgrade"
+      delegate_to: localhost
