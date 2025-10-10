@@ -1,37 +1,52 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes  # Python required for apt module
+  gather_facts: yes
+
+  vars:
+    notification_message: ""
 
   tasks:
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: yes
-        cache_valid_time: 3600  # optional: skip if cache is recent
+        cache_valid_time: 3600
+      register: update_result
       tags: update
-      notify: "Send Pushover notification"
 
-    - name: Upgrade all packages (normal upgrade)
+    - name: Upgrade all packages
       ansible.builtin.apt:
         upgrade: yes
         autoremove: yes
+      register: upgrade_result
       tags: upgrade
-      notify: "Send Pushover notification"
 
     - name: Remove unnecessary packages
       ansible.builtin.apt:
         autoremove: yes
+      register: cleanup_result
       tags: cleanup
-      notify: "Send Pushover notification"
 
-  handlers:
+    - name: Set notification message
+      set_fact:
+        notification_message: >-
+          {% set changes = [] %}
+          {% if update_result.changed %}{{ changes.append("apt cache updated") }}{% endif %}
+          {% if upgrade_result.changed %}{{ changes.append("packages upgraded") }}{% endif %}
+          {% if cleanup_result.changed %}{{ changes.append("packages removed") }}{% endif %}
+          {% if changes|length > 0 %}
+            Changes were applied: {{ changes | join(', ') }}
+          {% else %}
+            No changes were applied
+          {% endif %}
+      run_once: true
+
     - name: Send Pushover notification
       ansible.builtin.uri:
         url: https://api.pushover.net/1/messages.json
         method: POST
         body:
-          token: "{{ pover_token }}"  # Application token
-          user: "{{ pover_id }}"      # User key
-          message: "All tasks finished on all hosts"
+          token: "{{ pover_token }}"
+          user: "{{ pover_id }}"
+          message: "{{ notification_message }}"
         body_format: form-urlencoded
       run_once: true
-      delegate_to: localhost
