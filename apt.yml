@@ -18,6 +18,7 @@
       ansible.builtin.apt:
         autoremove: yes
       tags: cleanup
+      
     - name: Debug Pushover vars
       ansible.builtin.debug:
       var: pover_token
