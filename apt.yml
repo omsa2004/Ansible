@@ -20,7 +20,6 @@
         autoremove: yes
       tags: cleanup
 
-    # Notify Pushover only once after the upgrade
     - name: Call Pushover notification runbook
       ansible.builtin.include_playbook:
         file: ../notify_pushover.yml
