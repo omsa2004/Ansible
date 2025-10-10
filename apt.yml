@@ -24,7 +24,7 @@
         url: https://api.pushover.net/1/messages.json
         method: POST
         body:
-          token: "{{ pushover_api_token }}"
-          user: "{{ pushover_user_key }}"
+          token: "{{ lookup('env', 'PUSHOVER_API_TOKEN') }}"   # the secret key name
+          user: "{{ lookup('env', 'PUSHOVER_USER_KEY') }}"      # the secret key name
           message: "Task {{ ansible_job_id }} finished"
         body_format: form-urlencoded
