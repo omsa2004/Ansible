@@ -12,9 +12,37 @@
       ansible.builtin.apt:
         upgrade: dist
         autoremove: yes
+      register: upgrade_result
       tags: upgrade
 
     - name: Remove unnecessary packages
       ansible.builtin.apt:
         autoremove: yes
       tags: cleanup
+
+    - name: Set upgrade summary fact
+      set_fact:
+        upgrades_made: "{{ upgrade_result.changed | default(false) }}"
+      run_once: true
+
+- hosts: localhost
+  gather_facts: no
+  vars:
+    playbook_name: "apt.yml"
+  tasks:
+    - name: Send Pushover notification
+      ansible.builtin.uri:
+        url: https://api.pushover.net/1/messages.json
+        method: POST
+        body:
+          token: "{{ pover_token }}"  # from Variable Group secret
+          user: "{{ pover_id }}"      # from Variable Group secret
+          message: >-
+            Playbook {{ playbook_name }} finished.
+            {% if hostvars | dict2items | selectattr('value.upgrades_made', 'defined') | selectattr('value.upgrades_made') | list | length > 0 %}
+              Upgrades were applied on one or more hosts.
+            {% else %}
+              No changes were made on any host.
+            {% endif %}
+        body_format: form-urlencoded
+      run_once: true
