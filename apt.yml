@@ -21,7 +21,7 @@
       
     - name: Debug Pushover vars
       ansible.builtin.debug:
-      var: pover_token
+        var: pover_token
 
     - name: Send Pushover notification
       ansible.builtin.uri:
