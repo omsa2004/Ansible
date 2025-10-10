@@ -1,14 +1,15 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes  # Required for apt module
+  gather_facts: yes
   tasks:
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
+      register: update_result
       tags: update
 
-    - name: Upgrade all packages
+    - name: Upgrade all packages (normal upgrade)
       ansible.builtin.apt:
         upgrade: yes
         autoremove: yes
@@ -18,12 +19,31 @@
     - name: Remove unnecessary packages
       ansible.builtin.apt:
         autoremove: yes
+      register: cleanup_result
       tags: cleanup
 
-    - name: Call Pushover notification runbook
-      ansible.builtin.include_playbook:
-        file: ../notify_pushover.yml
-      vars:
-        changes_status: "{{ 'Yes' if upgrade_result.changed else 'No' }}"
-        playbook_name: "APT Upgrade"
-      delegate_to: localhost
+- hosts: localhost
+  gather_facts: no
+  vars:
+    playbook_name: "apt.yml"
+  tasks:
+    - name: Determine if any upgrades were made
+      set_fact:
+        upgrades_made: "{{ upgrade_result.changed | default(false) }}"
+
+    - name: Send Pushover notification if upgrades occurred
+      ansible.builtin.uri:
+        url: https://api.pushover.net/1/messages.json
+        method: POST
+        body:
+          token: "{{ pover_token }}"  # from Variable Group secret
+          user: "{{ pover_id }}"      # from Variable Group secret
+          message: >-
+            Playbook {{ playbook_name }} finished.
+            {% if upgrades_made %}
+              Upgrades were applied.
+            {% else %}
+              No changes were made.
+            {% endif %}
+        body_format: form-urlencoded
+      when: upgrades_made is defined
