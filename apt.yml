@@ -21,4 +21,4 @@
       
     - name: Debug Pushover vars
       ansible.builtin.debug:
-        var: "{{var.pover_token}}"
+        var: var.pover_token
