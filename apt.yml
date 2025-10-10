@@ -18,13 +18,17 @@
       ansible.builtin.apt:
         autoremove: yes
       tags: cleanup
-      
+    - name: Debug Pushover vars
+      ansible.builtin.debug:
+        var: pover_token
+        var: pover_id
+        
     - name: Send Pushover notification
       ansible.builtin.uri:
         url: https://api.pushover.net/1/messages.json
         method: POST
         body:
-          token: pover_token
-          user: pover_user
+          token: "{{ pover_token }}"  # Application token
+          user: "{{ pover_id }}"      # User key
           message: "Task finished {{ ansible_job_id | default('manual-run') }}"
         body_format: form-urlencoded
