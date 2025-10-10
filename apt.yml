@@ -1,38 +1,23 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes  # Python required for apt module
+  gather_facts: yes
   vars:
-    playbook_name: "apt.yml"  # Hardcoded playbook name
+    playbook_name: "apt.yml"
   tasks:
-    - name: Update apt cache
-      ansible.builtin.apt:
-        update_cache: yes
-        cache_valid_time: 3600
-
-    - name: Upgrade all packages (normal upgrade)
+    - name: Upgrade all packages
       ansible.builtin.apt:
         upgrade: yes
         autoremove: yes
       register: upgrade_result
-      notify: send_upgrade_notification
 
-    - name: Remove unnecessary packages
-      ansible.builtin.apt:
-        autoremove: yes
-
-  handlers:
-    - name: send_upgrade_notification
-      ansible.builtin.uri:
-        url: https://api.pushover.net/1/messages.json
-        method: POST
-        body:
-          token: "{{ pover_token }}"  # Application token
-          user: "{{ pover_id }}"      # User key
-          message: >-
-            Playbook {{ playbook_name }} finished.
-            {% if upgrade_result.changed %}
-              Upgrade was performed on the system.
-            {% else %}
-              No packages needed upgrading.
-            {% endif %}
-        body_format: form-urlencoded
+    - name: Call notification runbook if upgrade happened
+      ansible.builtin.include_playbook: notify_pushover.yml
+      vars:
+        message: >-
+          Playbook {{ playbook_name }} finished.
+          {% if upgrade_result.changed %}
+            Upgrade was performed on the system.
+          {% else %}
+            No packages needed upgrading.
+          {% endif %}
+      when: upgrade_result.changed
