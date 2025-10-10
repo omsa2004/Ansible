@@ -8,24 +8,20 @@
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
-      register: update_result
-      notify: send_notification
 
     - name: Upgrade all packages (normal upgrade)
       ansible.builtin.apt:
         upgrade: yes
         autoremove: yes
       register: upgrade_result
-      notify: send_notification
+      notify: send_upgrade_notification
 
     - name: Remove unnecessary packages
       ansible.builtin.apt:
         autoremove: yes
-      register: cleanup_result
-      notify: send_notification
 
   handlers:
-    - name: send_notification
+    - name: send_upgrade_notification
       ansible.builtin.uri:
         url: https://api.pushover.net/1/messages.json
         method: POST
@@ -34,9 +30,9 @@
           user: "{{ pover_id }}"      # User key
           message: >-
             Playbook {{ playbook_name }} finished.
-            {% if update_result.changed or upgrade_result.changed or cleanup_result.changed %}
-              Changes were made.
+            {% if upgrade_result.changed %}
+              Upgrade was performed on the system.
             {% else %}
-              No changes were needed.
+              No packages needed upgrading.
             {% endif %}
         body_format: form-urlencoded
