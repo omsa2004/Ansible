@@ -1,52 +1,42 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes
-
+  gather_facts: yes  # Python required for apt module
   vars:
-    notification_message: ""
-
+    playbook_name: "apt.yml"  # Hardcoded playbook name
   tasks:
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
       register: update_result
-      tags: update
+      notify: send_notification
 
-    - name: Upgrade all packages
+    - name: Upgrade all packages (normal upgrade)
       ansible.builtin.apt:
         upgrade: yes
         autoremove: yes
       register: upgrade_result
-      tags: upgrade
+      notify: send_notification
 
     - name: Remove unnecessary packages
       ansible.builtin.apt:
         autoremove: yes
       register: cleanup_result
-      tags: cleanup
+      notify: send_notification
 
-    - name: Set notification message
-      set_fact:
-        notification_message: >-
-          {% set changes = [] %}
-          {% if update_result.changed %}{{ changes.append("apt cache updated") }}{% endif %}
-          {% if upgrade_result.changed %}{{ changes.append("packages upgraded") }}{% endif %}
-          {% if cleanup_result.changed %}{{ changes.append("packages removed") }}{% endif %}
-          {% if changes|length > 0 %}
-            Changes were applied: {{ changes | join(', ') }}
-          {% else %}
-            No changes were applied
-          {% endif %}
-      run_once: true
-
-    - name: Send Pushover notification
+  handlers:
+    - name: send_notification
       ansible.builtin.uri:
         url: https://api.pushover.net/1/messages.json
         method: POST
         body:
-          token: "{{ pover_token }}"
-          user: "{{ pover_id }}"
-          message: "{{ notification_message }}"
+          token: "{{ pover_token }}"  # Application token
+          user: "{{ pover_id }}"      # User key
+          message: >-
+            Playbook {{ playbook_name }} finished.
+            {% if update_result.changed or upgrade_result.changed or cleanup_result.changed %}
+              Changes were made.
+            {% else %}
+              No changes were needed.
+            {% endif %}
         body_format: form-urlencoded
-      run_once: true
