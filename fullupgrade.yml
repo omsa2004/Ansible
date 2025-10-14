@@ -28,7 +28,7 @@
 - hosts: localhost
   gather_facts: no
   vars:
-    playbook_name: "apt.yml"
+    playbook_name: "fullupgrade.yml"
   tasks:
     - name: Send Pushover notification
       ansible.builtin.uri:
