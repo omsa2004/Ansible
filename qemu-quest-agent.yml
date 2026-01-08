@@ -1,11 +1,12 @@
 - hosts: "*"
   become: yes
-  gather_facts: yes  # Keeps fact gathering for module operations
+  gather_facts: yes
+
   tasks:
     - name: Ensure apt cache is up to date
       ansible.builtin.apt:
         update_cache: yes
-        cache_valid_time: 3600  # Optional: avoid updating cache if recent
+        cache_valid_time: 3600
       tags: update
 
     - name: Install qemu-guest-agent
@@ -15,9 +16,18 @@
         install_recommends: yes
       tags: install
 
-    - name: Ensure qemu-guest-agent service is enabled and started
-      ansible.builtin.service:
+    # Use systemd explicitly (more reliable than service module)
+    - name: Enable and start qemu-guest-agent (systemd)
+      ansible.builtin.systemd:
         name: qemu-guest-agent
         enabled: yes
         state: started
+        daemon_reload: yes
       tags: service
+
+    - name: Check qemu-guest-agent status
+      ansible.builtin.command: systemctl is-active qemu-guest-agent
+      register: qga_active
+      changed_when: false
+      failed_when: qga_active.stdout.strip() != "active"
+      tags: verify
