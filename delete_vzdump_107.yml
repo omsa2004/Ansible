@@ -1,41 +1,75 @@
 ---
-- name: Delete vzdump-qemu-107* backups on host2 with progress
+- name: Delete vzdump-qemu-107 backups on host2 (progress + clean up)
   hosts: host2
   gather_facts: false
-  become: true
 
   vars:
     dump_dir: "/var/lib/vz/dump"
-    pattern: "vzdump-qemu-107*"
+    vmid: "107"
 
   tasks:
+    - name: Heartbeat (start)
+      ansible.builtin.command: date -Is
+      register: ts_start
+      changed_when: false
+
+    - name: Show start time
+      ansible.builtin.debug:
+        msg: "Start: {{ ts_start.stdout }}"
+
     - name: List matching files
       ansible.builtin.shell: |
         shopt -s nullglob
-        ls -1 {{ dump_dir }}/{{ pattern }} 2>/dev/null || true
+        ls -1 {{ dump_dir }}/vzdump-qemu-{{ vmid }}* 2>/dev/null || true
       args:
         executable: /bin/bash
       register: matches
       changed_when: false
 
-    - name: Show what will be deleted
+    - name: Show matching files
       ansible.builtin.debug:
         var: matches.stdout_lines
 
-    - name: Delete with progress (Semaphore-friendly)
+    - name: Delete backup archive(s) with progress (vma.zst only)
       ansible.builtin.shell: |
         set -euo pipefail
         f="{{ item }}"
-        echo "=== Deleting: $f ==="
+        echo "=== Deleting archive: $f ==="
         ls -lh "$f" || true
 
-        # Print a progress line every 30 seconds (log-friendly)
+        # Progress line every 30s (works better in logs than animated bars)
         pv -f -p -t -e -r -a -i 30 "$f" > /dev/null
 
         rm -f -- "$f"
-        echo "=== Done: $f ==="
-        df -h {{ dump_dir }} | tail -n +1
+        echo "=== Deleted archive: $f ==="
       args:
         executable: /bin/bash
-      loop: "{{ matches.stdout_lines }}"
-      when: matches.stdout_lines | length > 0
+      loop: "{{ matches.stdout_lines | select('match', '.*\\.vma\\.zst$') | list }}"
+      when: (matches.stdout_lines | select('match', '.*\\.vma\\.zst$') | list) | length > 0
+
+    - name: Delete notes/log leftovers (fast)
+      ansible.builtin.shell: |
+        shopt -s nullglob
+        rm -f -- {{ dump_dir }}/vzdump-qemu-{{ vmid }}*.vma.zst.notes {{ dump_dir }}/vzdump-qemu-{{ vmid }}*.log
+      args:
+        executable: /bin/bash
+      register: cleanup
+      changed_when: cleanup.rc == 0
+
+    - name: Show free space after delete
+      ansible.builtin.command: df -h "{{ dump_dir }}"
+      register: df_out
+      changed_when: false
+
+    - name: Free space
+      ansible.builtin.debug:
+        var: df_out.stdout_lines
+
+    - name: Heartbeat (end)
+      ansible.builtin.command: date -Is
+      register: ts_end
+      changed_when: false
+
+    - name: Show end time
+      ansible.builtin.debug:
+        msg: "End: {{ ts_end.stdout }}"
