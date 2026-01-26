@@ -1,5 +1,5 @@
 ---
-- name: Delete vzdump-qemu-107* backups on host2
+- name: Delete vzdump-qemu-107* backups on host2 with progress
   hosts: host2
   gather_facts: false
   become: true
@@ -9,24 +9,41 @@
     pattern: "vzdump-qemu-107*"
 
   tasks:
-    - name: Quick list matching files (does not recurse)
+    - name: Ensure pv is installed (Debian/Ubuntu/Proxmox)
+      ansible.builtin.apt:
+        name: pv
+        state: present
+        update_cache: true
+
+    - name: List matching files (no recurse)
       ansible.builtin.shell: |
-        set -o pipefail
+        shopt -s nullglob
         ls -1 {{ dump_dir }}/{{ pattern }} 2>/dev/null || true
       args:
         executable: /bin/bash
-      register: files
+      register: matches
       changed_when: false
 
-    - name: Show what will be deleted
-      ansible.builtin.debug:
-        var: files.stdout_lines
+    - name: Fail if nothing matched
+      ansible.builtin.fail:
+        msg: "No files matched {{ dump_dir }}/{{ pattern }}"
+      when: matches.stdout_lines | length == 0
 
-    - name: Delete matching files quickly
+    - name: Show files to delete
+      ansible.builtin.debug:
+        var: matches.stdout_lines
+
+    - name: Delete each file with progress output
       ansible.builtin.shell: |
-        shopt -s nullglob
-        rm -f -- {{ dump_dir }}/{{ pattern }}
+        set -euo pipefail
+        f="{{ item }}"
+        echo "=== Deleting: $f ==="
+        echo "--- Size:"
+        ls -lh "$f" || true
+        echo "--- Progress (reading file, then removing):"
+        pv -p -t -e -r -a "$f" > /dev/null
+        rm -f -- "$f"
+        echo "=== Done: $f ==="
       args:
         executable: /bin/bash
-      register: rm_result
-      changed_when: files.stdout | length > 0
+      loop: "{{ matches.stdout_lines }}"
