@@ -9,12 +9,7 @@
     pattern: "vzdump-qemu-107*"
 
   tasks:
-    - name: Confirm pv exists
-      ansible.builtin.command: "pv --version"
-      register: pv_ver
-      changed_when: false
-
-    - name: List matching files (no recursion)
+    - name: List matching files
       ansible.builtin.shell: |
         shopt -s nullglob
         ls -1 {{ dump_dir }}/{{ pattern }} 2>/dev/null || true
@@ -23,11 +18,7 @@
       register: matches
       changed_when: false
 
-    - name: Show what will be deleted
-      ansible.builtin.debug:
-        var: matches.stdout_lines
-
-    - name: Delete with progress (pv)
+    - name: Delete with progress
       ansible.builtin.shell: |
         set -euo pipefail
         f="{{ item }}"
@@ -36,7 +27,6 @@
         pv -p -t -e -r -a "$f" > /dev/null
         rm -f -- "$f"
         echo "=== Done: $f ==="
-        df -h {{ dump_dir }} | tail -n +1
       args:
         executable: /bin/bash
       loop: "{{ matches.stdout_lines }}"
