@@ -4,7 +4,7 @@
   gather_facts: false
 
   vars:
-    dump_dir: "/var/lib/vz/dump"
+    dump_dir: "{{ dump_dir }}"
     vmid: "107"
     df_interval_seconds: 30
     df_loops: 6   # 6 * 30s = 3 minutes of updates
