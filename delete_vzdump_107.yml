@@ -9,20 +9,24 @@
     pattern: "vzdump-qemu-107*"
 
   tasks:
-    - name: Find matching backup files
-      ansible.builtin.find:
-        paths: "{{ dump_dir }}"
-        patterns: "{{ pattern }}"
-        file_type: file
-      register: matches
+    - name: Quick list matching files (does not recurse)
+      ansible.builtin.shell: |
+        set -o pipefail
+        ls -1 {{ dump_dir }}/{{ pattern }} 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      register: files
+      changed_when: false
 
     - name: Show what will be deleted
       ansible.builtin.debug:
-        msg: "{{ matches.files | map(attribute='path') | list }}"
+        var: files.stdout_lines
 
-    - name: Delete matching backup files
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        state: absent
-      loop: "{{ matches.files }}"
-      when: matches.matched | int > 0
+    - name: Delete matching files quickly
+      ansible.builtin.shell: |
+        shopt -s nullglob
+        rm -f -- {{ dump_dir }}/{{ pattern }}
+      args:
+        executable: /bin/bash
+      register: rm_result
+      changed_when: files.stdout | length > 0
