@@ -1,0 +1,28 @@
+---
+- name: Delete vzdump-qemu-107* backups on host2
+  hosts: host2
+  gather_facts: false
+  become: true
+
+  vars:
+    dump_dir: "/var/lib/vz/dump"
+    pattern: "vzdump-qemu-107*"
+
+  tasks:
+    - name: Find matching backup files
+      ansible.builtin.find:
+        paths: "{{ dump_dir }}"
+        patterns: "{{ pattern }}"
+        file_type: file
+      register: matches
+
+    - name: Show what will be deleted
+      ansible.builtin.debug:
+        msg: "{{ matches.files | map(attribute='path') | list }}"
+
+    - name: Delete matching backup files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ matches.files }}"
+      when: matches.matched | int > 0
