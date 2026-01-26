@@ -18,15 +18,23 @@
       register: matches
       changed_when: false
 
-    - name: Delete with progress
+    - name: Show what will be deleted
+      ansible.builtin.debug:
+        var: matches.stdout_lines
+
+    - name: Delete with progress (Semaphore-friendly)
       ansible.builtin.shell: |
         set -euo pipefail
         f="{{ item }}"
         echo "=== Deleting: $f ==="
         ls -lh "$f" || true
-        pv -p -t -e -r -a "$f" > /dev/null
+
+        # Print a progress line every 30 seconds (log-friendly)
+        pv -f -p -t -e -r -a -i 30 "$f" > /dev/null
+
         rm -f -- "$f"
         echo "=== Done: $f ==="
+        df -h {{ dump_dir }} | tail -n +1
       args:
         executable: /bin/bash
       loop: "{{ matches.stdout_lines }}"
