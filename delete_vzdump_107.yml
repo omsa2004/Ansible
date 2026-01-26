@@ -1,11 +1,13 @@
 ---
-- name: Delete vzdump-qemu-107 backups on host2 (progress + clean up)
+- name: Delete vzdump-qemu-107 backups on host2 (fast delete + clean up)
   hosts: host2
   gather_facts: false
 
   vars:
     dump_dir: "/var/lib/vz/dump"
     vmid: "107"
+    df_interval_seconds: 30
+    df_loops: 6   # 6 * 30s = 3 minutes of updates
 
   tasks:
     - name: Heartbeat (start)
@@ -30,18 +32,33 @@
       ansible.builtin.debug:
         var: matches.stdout_lines
 
-    - name: Delete backup archive(s) with progress (vma.zst only)
+    - name: Show free space before delete
+      ansible.builtin.command: df -h "{{ dump_dir }}"
+      register: df_before
+      changed_when: false
+
+    - name: Free space before
+      ansible.builtin.debug:
+        var: df_before.stdout_lines
+
+    - name: Delete backup archive(s) NOW (vma.zst only) + show df updates
       ansible.builtin.shell: |
         set -euo pipefail
         f="{{ item }}"
-        echo "=== Deleting archive: $f ==="
+        D="{{ dump_dir }}"
+
+        echo "=== Removing archive NOW: $f ==="
         ls -lh "$f" || true
 
-        # Progress line every 30s (works better in logs than animated bars)
-        pv -f -p -t -e -r -a -i 30 "$f" > /dev/null
-
         rm -f -- "$f"
-        echo "=== Deleted archive: $f ==="
+
+        echo "=== Removed. Tracking free space ({{ df_loops }}x every {{ df_interval_seconds }}s) ==="
+        for i in $(seq 1 {{ df_loops }}); do
+          echo "--- df update #$i ---"
+          df -h "$D" | tail -n +1
+          sleep {{ df_interval_seconds }}
+        done
+        echo "=== Done tracking free space ==="
       args:
         executable: /bin/bash
       loop: "{{ matches.stdout_lines | select('match', '.*\\.vma\\.zst$') | list }}"
@@ -61,7 +78,7 @@
       register: df_out
       changed_when: false
 
-    - name: Free space
+    - name: Free space after
       ansible.builtin.debug:
         var: df_out.stdout_lines
 
