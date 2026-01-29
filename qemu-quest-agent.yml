@@ -1,33 +1,104 @@
-- hosts: "*"
+- name: APT update/upgrade on all hosts (with lock wait + retries)
+  hosts: "*"
   become: yes
   gather_facts: yes
 
+  vars:
+    apt_lock_wait_seconds: 600   # total wait time (10 min)
+    apt_lock_poll_seconds: 10    # check every 10s
+    apt_retries: 18
+    apt_delay: 10
+
+  pre_tasks:
+    - name: Wait for apt/dpkg locks to be released
+      ansible.builtin.shell: |
+        set -euo pipefail
+        end=$((SECONDS+{{ apt_lock_wait_seconds }}))
+        while true; do
+          if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+          || fuser /var/lib/dpkg/lock >/dev/null 2>&1 \
+          || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+            if [ $SECONDS -ge $end ]; then
+              echo "Timed out waiting for apt/dpkg locks"
+              fuser -v /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock || true
+              ps -ef | egrep 'apt-get|apt.systemd.daily|unattended-upgr' | grep -v egrep || true
+              exit 1
+            fi
+            sleep {{ apt_lock_poll_seconds }}
+          else
+            exit 0
+          fi
+        done
+      args:
+        executable: /bin/bash
+      changed_when: false
+
   tasks:
-    - name: Ensure apt cache is up to date
+    - name: Update apt cache
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
+      register: update_result
+      retries: "{{ apt_retries }}"
+      delay: "{{ apt_delay }}"
+      until: update_result is succeeded
       tags: update
 
-    - name: Install qemu-guest-agent
+    - name: Upgrade all packages (normal upgrade)
       ansible.builtin.apt:
-        name: qemu-guest-agent
-        state: present
-        install_recommends: yes
-      tags: install
+        upgrade: yes
+        autoremove: yes
+      register: upgrade_result
+      retries: "{{ apt_retries }}"
+      delay: "{{ apt_delay }}"
+      until: upgrade_result is succeeded
+      tags: upgrade
 
-    # Use systemd explicitly (more reliable than service module)
-    - name: Enable and start qemu-guest-agent (systemd)
-      ansible.builtin.systemd:
-        name: qemu-guest-agent
-        enabled: yes
-        state: started
-        daemon_reload: yes
-      tags: service
+    - name: Remove unnecessary packages
+      ansible.builtin.apt:
+        autoremove: yes
+      register: cleanup_result
+      retries: "{{ apt_retries }}"
+      delay: "{{ apt_delay }}"
+      until: cleanup_result is succeeded
+      tags: cleanup
 
-    - name: Check qemu-guest-agent status
-      ansible.builtin.command: systemctl is-active qemu-guest-agent
-      register: qga_active
-      changed_when: false
-      failed_when: qga_active.stdout.strip() != "active"
-      tags: verify
+
+- name: Notify via Pushover (aggregate results from all hosts)
+  hosts: localhost
+  gather_facts: no
+  vars:
+    playbook_name: "apt.yml"
+
+  tasks:
+    - name: Build list of hosts where upgrades were applied
+      set_fact:
+        upgraded_hosts: >-
+          {{
+            groups['all']
+            | difference(['localhost'])
+            | select('in', hostvars.keys())
+            | select(lambda h: (hostvars[h].upgrade_result is defined) and (hostvars[h].upgrade_result.changed | default(false)))
+            | list
+          }}
+
+    - name: Determine if any upgrades were made
+      set_fact:
+        upgrades_made: "{{ (upgraded_hosts | length) > 0 }}"
+
+    - name: Send Pushover notification
+      ansible.builtin.uri:
+        url: https://api.pushover.net/1/messages.json
+        method: POST
+        body:
+          token: "{{ pover_token }}"
+          user: "{{ pover_id }}"
+          message: >-
+            Playbook {{ playbook_name }} finished.
+            {% if upgrades_made %}
+            Upgrades were applied on: {{ upgraded_hosts | join(', ') }}
+            {% else %}
+            No upgrades were applied.
+            {% endif %}
+        body_format: form-urlencoded
+      when: upgrades_made is defined
