@@ -1,25 +1,17 @@
----
 - name: Reboot all machines
   hosts: "*"
   become: yes
   gather_facts: no
 
   tasks:
-    - name: Reboot the machine
-      ansible.builtin.reboot:
-        reboot_timeout: 600      # time to wait for machine to come back (seconds)
-        pre_reboot_delay: 0      # delay before rebooting
-        post_reboot_delay: 10    # wait after the host comes back up
-        test_command: whoami     # checks if machine is ready
+    - name: Schedule reboot in 1 minute (so playbook can finish)
+      ansible.builtin.command: shutdown -r +1 "Reboot scheduled by Ansible/Semaphore"
       register: reboot_result
-
-    - name: Confirm machine is up
-      ansible.builtin.ping:
+      changed_when: true
 
     - name: Set reboot summary fact
       set_fact:
-        reboot_success: "{{ reboot_result.changed | default(false) }}"
-      run_once: true
+        reboot_success: true
 
 - hosts: localhost
   gather_facts: no
