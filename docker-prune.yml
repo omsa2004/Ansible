@@ -1,0 +1,38 @@
+---
+- name: Docker prune on hosts
+  hosts: docker_hosts
+  become: true
+  gather_facts: false
+
+  vars:
+    # Safer default: don't delete volumes, don't do -a
+    docker_prune_cmd: "docker system prune -f"
+
+    # If you want more aggressive cleanup, uncomment ONE:
+    # docker_prune_cmd: "docker system prune -af"          # removes all unused images too
+    # docker_prune_cmd: "docker system prune -f --volumes" # also removes unused volumes (careful!)
+    # docker_prune_cmd: "docker system prune -af --volumes" # most aggressive (careful!)
+
+  tasks:
+    - name: Show docker disk usage before
+      command: docker system df
+      register: before_df
+      changed_when: false
+      failed_when: false
+
+    - name: Run docker system prune
+      command: "{{ docker_prune_cmd }}"
+      register: prune_out
+
+    - name: Show docker disk usage after
+      command: docker system df
+      register: after_df
+      changed_when: false
+      failed_when: false
+
+    - name: Print results
+      debug:
+        msg:
+          - "BEFORE:\n{{ before_df.stdout | default('') }}"
+          - "PRUNE:\n{{ prune_out.stdout | default('') }}"
+          - "AFTER:\n{{ after_df.stdout | default('') }}"
