@@ -1,19 +1,25 @@
-- name: Reboot all machines
-  hosts: "*"
+- name: Reboot all machines one by one
+  hosts: all
   become: yes
   gather_facts: no
+  serial: 1
+  order: sorted
 
   tasks:
-    - name: Schedule reboot in 1 minute (so playbook can finish)
-      ansible.builtin.command: shutdown -r +1 "Reboot scheduled by Ansible/Semaphore"
+    - name: Reboot host and wait until it comes back
+      ansible.builtin.reboot:
+        msg: "Reboot scheduled by Ansible/Semaphore"
+        reboot_timeout: 900
+        connect_timeout: 10
+        post_reboot_delay: 15
       register: reboot_result
-      changed_when: true
 
-    - name: Set reboot summary fact
-      set_fact:
+    - name: Mark reboot success
+      ansible.builtin.set_fact:
         reboot_success: true
 
-- hosts: localhost
+- name: Send summary notification
+  hosts: localhost
   gather_facts: no
   vars:
     playbook_name: "reboot.yml"
@@ -23,14 +29,19 @@
         url: https://api.pushover.net/1/messages.json
         method: POST
         body:
-          token: "{{ pover_token }}"  # from Variable Group secret
-          user: "{{ pover_id }}"      # from Variable Group secret
+          token: "{{ pover_token }}"
+          user: "{{ pover_id }}"
           message: >-
             Playbook {{ playbook_name }} finished.
-            {% if hostvars | dict2items | selectattr('value.reboot_success', 'defined') | selectattr('value.reboot_success') | list | length > 0 %}
-              Machines rebooted successfully.
-            {% else %}
-              No reboots were performed or all machines were already up to date.
-            {% endif %}
+            Rebooted hosts:
+            {{
+              hostvars
+              | dict2items
+              | selectattr('value.reboot_success', 'defined')
+              | selectattr('value.reboot_success')
+              | map(attribute='key')
+              | list
+              | join(', ')
+            }}
         body_format: form-urlencoded
       run_once: true
