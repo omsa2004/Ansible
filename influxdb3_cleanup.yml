@@ -2,27 +2,18 @@
   hosts: graylog
   become: false
   tasks:
-    - name: Get list of snapshot files sorted by date
-      ansible.builtin.find:
-        paths: "/home/omar/.influxdb/data/node0/snapshots"
-        patterns: "*.json"
-        age_stamp: mtime
-      register: snapshot_files
+    - name: Delete old snapshots, keep 10 most recent
+      ansible.builtin.shell: |
+        cd /home/omar/.influxdb/data/node0/snapshots/
+        count=$(ls -1 | wc -l)
+        if [ "$count" -gt 10 ]; then
+          ls -t | tail -n +11 | xargs rm -f
+          echo "Deleted $((count - 10)) snapshots"
+        else
+          echo "Only $count snapshots, nothing to delete"
+        fi
+      register: cleanup_result
 
-    - name: Delete old snapshots (keep last 10)
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        state: absent
-      loop: >-
-        {{
-          snapshot_files.files
-          | sort(attribute='mtime')
-          | list
-          | slice(0, [snapshot_files.files | length - 10, 0] | max)
-          | sum(start=[])
-        }}
-      when: snapshot_files.files | length > 10
-
-    - name: Show cleanup summary
+    - name: Show result
       ansible.builtin.debug:
-        msg: "Done. {{ snapshot_files.files | length }} snapshots found, kept 10 most recent"
+        msg: "{{ cleanup_result.stdout }}"
