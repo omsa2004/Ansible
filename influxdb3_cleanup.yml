@@ -1,4 +1,3 @@
-# influxdb3_cleanup.yml
 - name: Clean up InfluxDB 3 snapshots
   hosts: graylog
   become: false
@@ -10,25 +9,20 @@
         age_stamp: mtime
       register: snapshot_files
 
-    - name: Sort and identify files to delete (keep last 10)
-      ansible.builtin.set_fact:
-        files_to_delete: >-
-          {{
-            snapshot_files.files
-            | sort(attribute='mtime')
-            | list
-            | slice(0, (snapshot_files.files | length) - 10)
-            | list
-            | sum(start=[])
-          }}
-
-    - name: Delete old snapshots
+    - name: Delete old snapshots (keep last 10)
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: absent
-      loop: "{{ files_to_delete }}"
+      loop: >-
+        {{
+          snapshot_files.files
+          | sort(attribute='mtime')
+          | list
+          | slice(0, [snapshot_files.files | length - 10, 0] | max)
+          | sum(start=[])
+        }}
       when: snapshot_files.files | length > 10
 
     - name: Show cleanup summary
       ansible.builtin.debug:
-        msg: "Deleted {{ files_to_delete | length }} snapshots, kept 10 most recent"
+        msg: "Done. {{ snapshot_files.files | length }} snapshots found, kept 10 most recent"
