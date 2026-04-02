@@ -12,7 +12,7 @@
       failed_when: false
 
     - name: Run docker system prune (safe)
-      command: docker system prune -f
+      command: docker system prune -af
       register: prune_out
 
     - name: Show docker disk usage after
